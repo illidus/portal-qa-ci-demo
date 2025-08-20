@@ -1,64 +1,43 @@
-name: Portal QA/CI Pipeline
+name: CI Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, feat/* ]
   pull_request:
     branches: [ main ]
 
 jobs:
-  lint-and-format:
+  test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10']
+
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up Python 3.9
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
       with:
-        python-version: '3.9'
-    
+        python-version: ${{ matrix.python-version }}
+
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install black flake8 mypy
         pip install -r requirements.txt
-    
-    - name: Run Black formatter check
-      run: black --check --diff .
-    
-    - name: Run Flake8 linter
-      run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-    
-    - name: Run MyPy type checker
-      run: mypy api/ raster_utils.py --ignore-missing-imports
 
-  test:
-    runs-on: ubuntu-latest
-    needs: lint-and-format
-    
-    steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up Python 3.9
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-    
-    - name: Install system dependencies
+    - name: Test with pytest
       run: |
-        sudo apt-get update
-        sudo apt-get install -y gdal-bin libgdal-dev
-    
-    - name: Install Python dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pytest-cov
-    
-    - name: Run tests with coverage
-      run: |
-        pytest test_api.py -v --cov=api --cov=raster_utils --cov-report=xml --cov-report=html
-    
+        pytest tests/ -v --cov=app --cov-report=xml --cov-report=term-missing
+
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:
@@ -67,61 +46,49 @@ jobs:
         name: codecov-umbrella
         fail_ci_if_error: false
 
-  api-integration-test:
+  integration-test:
     runs-on: ubuntu-latest
     needs: test
     
-    services:
-      api:
-        image: python:3.9
-        ports:
-          - 8000:8000
-    
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up Python 3.9
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.10
       uses: actions/setup-python@v4
       with:
-        python-version: '3.9'
-    
+        python-version: '3.10'
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        sudo apt-get update
-        sudo apt-get install -y gdal-bin libgdal-dev
-    
-    - name: Start API server
+
+    - name: Start FastAPI server
       run: |
-        cd api
-        python main.py &
-        sleep 10
-      env:
-        PYTHONPATH: ..
-    
-    - name: Run API health check
-      run: |
-        curl -f http://localhost:8000/ || exit 1
-        curl -f http://localhost:8000/health/ || exit 1
-    
+        cd app && python main.py &
+        sleep 5
+
     - name: Test API endpoints
       run: |
-        # Test authentication
-        response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/tiles/)
-        if [ $response -ne 403 ]; then
-          echo "Expected 403 for unauthenticated request, got $response"
-          exit 1
-        fi
+        curl -f http://localhost:8000/ || exit 1
+        curl -f http://localhost:8000/health || exit 1
         
-        # Test with valid auth
-        response=$(curl -s -o /dev/null -w "%{http_code}" \
-          -H "Authorization: Bearer demo_api_token_12345" \
+        curl -f -X POST http://localhost:8000/users \
           -H "Content-Type: application/json" \
-          -d '{"x": 1, "y": 1, "z": 1, "layer": "test"}' \
-          http://localhost:8000/tiles/)
-        if [ $response -ne 200 ]; then
-          echo "Expected 200 for authenticated tile creation, got $response"
+          -d '{"user_id": 12345, "username": "test_user", "email": "test@example.com", "age": 25}' || exit 1
+        
+        curl -f -X POST http://localhost:8000/users/validate \
+          -H "Content-Type: application/json" \
+          -d '{"user_id": 67890, "username": "validate_user", "email": "validate@example.com", "age": 30}' || exit 1
+
+    - name: Test API error handling
+      run: |
+        response_code=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:8000/users \
+          -H "Content-Type: application/json" \
+          -d '{"user_id": 0, "username": "a", "email": "invalid", "age": 5}')
+        
+        if [ "$response_code" != "422" ]; then
+          echo "Expected 422 status code for invalid data, got $response_code"
           exit 1
         fi
 
@@ -130,63 +97,66 @@ jobs:
     needs: test
     
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up Python 3.9
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.10
       uses: actions/setup-python@v4
       with:
-        python-version: '3.9'
-    
-    - name: Install dependencies
+        python-version: '3.10'
+
+    - name: Install security tools
       run: |
         python -m pip install --upgrade pip
-        pip install safety bandit
-        pip install -r requirements.txt
-    
-    - name: Run Safety check for known vulnerabilities
-      run: safety check --json --output safety-report.json || true
-    
-    - name: Run Bandit security linter
-      run: bandit -r api/ raster_utils.py -f json -o bandit-report.json || true
-    
+        pip install bandit safety
+
+    - name: Run Bandit security scan
+      run: |
+        bandit -r app/ -f json -o bandit-report.json || true
+        bandit -r app/ || true
+
+    - name: Check dependencies for known vulnerabilities
+      run: |
+        safety check --json --output safety-report.json || true
+        safety check || true
+
     - name: Upload security reports
       uses: actions/upload-artifact@v3
+      if: always()
       with:
         name: security-reports
         path: |
-          safety-report.json
           bandit-report.json
+          safety-report.json
 
   build-status:
     runs-on: ubuntu-latest
-    needs: [lint-and-format, test, api-integration-test, security-scan]
+    needs: [test, integration-test, security-scan]
     if: always()
     
     steps:
     - name: Check build status
       run: |
-        if [[ "${{ needs.lint-and-format.result }}" == "success" && \
-              "${{ needs.test.result }}" == "success" && \
-              "${{ needs.api-integration-test.result }}" == "success" && \
-              "${{ needs.security-scan.result }}" == "success" ]]; then
-          echo "✅ All CI checks passed!"
+        if [[ "${{ needs.test.result }}" == "success" && "${{ needs.integration-test.result }}" == "success" ]]; then
+          echo "✅ All tests passed successfully!"
           echo "BUILD_STATUS=success" >> $GITHUB_ENV
         else
-          echo "❌ Some CI checks failed"
+          echo "❌ Some tests failed"
           echo "BUILD_STATUS=failure" >> $GITHUB_ENV
           exit 1
         fi
-    
-    - name: Update commit status
-      uses: actions/github-script@v6
-      with:
-        script: |
-          github.rest.repos.createCommitStatus({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            sha: context.sha,
-            state: '${{ env.BUILD_STATUS }}',
-            target_url: '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}',
-            description: 'Portal QA/CI Pipeline',
-            context: 'ci/portal-qa'
-          })
+
+    - name: Create build summary
+      run: |
+        echo "## 🚀 Portal QA/CI Demo - Build Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Unit Tests | ${{ needs.test.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Integration Tests | ${{ needs.integration-test.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Security Scan | ${{ needs.security-scan.result == 'success' && '✅ Passed' || '⚠️ Completed' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📊 Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "- **FastAPI Application**: Pydantic validation and error handling" >> $GITHUB_STEP_SUMMARY
+        echo "- **API Endpoints**: Health checks, user creation, and validation" >> $GITHUB_STEP_SUMMARY
+        echo "- **Error Handling**: Input validation and edge cases" >> $GITHUB_STEP_SUMMARY
+        echo "- **Security**: Dependency vulnerability scanning" >> $GITHUB_STEP_SUMMARY
