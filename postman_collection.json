@@ -1,0 +1,331 @@
+{
+  "info": {
+    "name": "Portal Map Tile API",
+    "description": "Collection for testing Portal Map Tile API endpoints",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "demo_api_token_12345",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health & Status",
+      "item": [
+        {
+          "name": "Root Endpoint",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": ["{{baseUrl}}"],
+              "path": [""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Service Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["status"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Layers",
+      "item": [
+        {
+          "name": "List Available Layers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/layers",
+              "host": ["{{baseUrl}}"],
+              "path": ["layers"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Tiles",
+      "item": [
+        {
+          "name": "Get Soil pH Tile",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"x\": 5,\n  \"y\": 10,\n  \"z\": 8,\n  \"layer\": \"soil_ph\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tiles",
+              "host": ["{{baseUrl}}"],
+              "path": ["tiles"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Organic Matter Tile",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"x\": 12,\n  \"y\": 8,\n  \"z\": 10,\n  \"layer\": \"organic_matter\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tiles",
+              "host": ["{{baseUrl}}"],
+              "path": ["tiles"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get NDVI Tile",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"x\": 3,\n  \"y\": 6,\n  \"z\": 7,\n  \"layer\": \"ndvi\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tiles",
+              "host": ["{{baseUrl}}"],
+              "path": ["tiles"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Metadata",
+      "item": [
+        {
+          "name": "Get Metadata - Single Layer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bbox\": {\n    \"west\": -95.0,\n    \"south\": 35.0,\n    \"east\": -85.0,\n    \"north\": 45.0\n  },\n  \"layers\": [\"soil_ph\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/metadata",
+              "host": ["{{baseUrl}}"],
+              "path": ["metadata"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Metadata - Multiple Layers",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bbox\": {\n    \"west\": -100.0,\n    \"south\": 30.0,\n    \"east\": -80.0,\n    \"north\": 50.0\n  },\n  \"layers\": [\"soil_ph\", \"organic_matter\", \"elevation\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/metadata",
+              "host": ["{{baseUrl}}"],
+              "path": ["metadata"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Metadata - With Date Range",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bbox\": {\n    \"west\": -95.0,\n    \"south\": 35.0,\n    \"east\": -85.0,\n    \"north\": 45.0\n  },\n  \"layers\": [\"ndvi\"],\n  \"start_date\": \"2023-01-01T00:00:00\",\n  \"end_date\": \"2023-12-31T23:59:59\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/metadata",
+              "host": ["{{baseUrl}}"],
+              "path": ["metadata"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Upload",
+      "item": [
+        {
+          "name": "Upload GeoTIFF File",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Upload a .tif or .geotiff file"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["upload"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Error Cases",
+      "item": [
+        {
+          "name": "Invalid Layer - Tiles",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"x\": 5,\n  \"y\": 10,\n  \"z\": 8,\n  \"layer\": \"invalid_layer\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tiles",
+              "host": ["{{baseUrl}}"],
+              "path": ["tiles"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Invalid Bounding Box",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bbox\": {\n    \"west\": -85.0,\n    \"south\": 35.0,\n    \"east\": -95.0,\n    \"north\": 45.0\n  },\n  \"layers\": [\"soil_ph\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/metadata",
+              "host": ["{{baseUrl}}"],
+              "path": ["metadata"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "No Authentication",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"x\": 5,\n  \"y\": 10,\n  \"z\": 8,\n  \"layer\": \"soil_ph\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tiles",
+              "host": ["{{baseUrl}}"],
+              "path": ["tiles"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
